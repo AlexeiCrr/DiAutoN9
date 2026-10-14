@@ -3,8 +3,8 @@ package com.andrerinas.openheadunit.hud
 /**
  * The one fixed sequence every HUD route test sends: left at 500 m, right at 800 m, then clear.
  *
- * Shared by the debug per-route action and the in-car HUD test so both ask the driver to confirm the
- * same three things - direction, distance and a clean clear - not merely that "an arrow appeared".
+ * Defined once so every route test asks the same three things - direction, distance and a clean
+ * clear - not merely whether "an arrow appeared".
  */
 internal object HudTestSteps {
     /** How long each step stays up: long enough to read from the driver's seat and log a result. */
@@ -17,7 +17,7 @@ internal object HudTestSteps {
     private const val TURN_NORMAL_LEFT = 7
     private const val TURN_NORMAL_RIGHT = 8
 
-    enum class Step(val label: String, private val maneuverType: Int?, val distanceMeters: Int) {
+    enum class Step(val label: String, private val maneuverType: Int?, private val distanceMeters: Int) {
         LEFT_500("left arrow, 500 m", TURN_NORMAL_LEFT, 500),
         RIGHT_800("right arrow, 800 m", TURN_NORMAL_RIGHT, 800),
         CLEAR("cleared display", null, 0);

@@ -6,6 +6,7 @@ import android.graphics.Point
 import android.media.MediaCodecList
 import android.os.Build
 import android.view.WindowManager
+import androidx.core.content.pm.PackageInfoCompat
 import com.andrerinas.openheadunit.decoder.DecoderCapabilityReport
 import com.andrerinas.openheadunit.profile.HeadUnitIdentity
 import java.net.NetworkInterface
@@ -126,12 +127,10 @@ object HeadUnitProbe {
             .map { if (it.isUp) "${it.name}(up)" else it.name }
             .sorted()
 
+    /** Throws when the package is absent or hidden; [collect] maps that to "not visible". */
     private fun readPackage(context: Context, name: String): VendorPackage {
-        val info = runCatching { context.packageManager.getPackageInfo(name, 0) }.getOrNull()
-            ?: return VendorPackage(name, null, false)
-        @Suppress("DEPRECATION")
-        val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+        val info = context.packageManager.getPackageInfo(name, 0)
         val system = ((info.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM) != 0
-        return VendorPackage(name, code, system)
+        return VendorPackage(name, PackageInfoCompat.getLongVersionCode(info), system)
     }
 }

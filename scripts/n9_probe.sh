@@ -23,8 +23,7 @@ PROBE_VERSION=1
 SED=sed
 if ! sed --version >/dev/null 2>&1; then
     if command -v gsed >/dev/null 2>&1; then SED=gsed; else
-        printf 'GNU sed is required (on macOS: brew install gnu-sed).
-' >&2; exit 1
+        printf 'GNU sed is required (on macOS: brew install gnu-sed).\n' >&2; exit 1
     fi
 fi
 
@@ -32,7 +31,7 @@ fi
 # Order matters: long digit runs are masked before the VIN pattern so a 17-digit number reads [number].
 redact() {
     "$SED" -E \
-        -e '/[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Pp][Hh][Rr][Aa][Ss][Ee]|[Pp][Ss][Kk]|[Tt][Oo][Kk][Ee][Nn]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee].?[Kk][Ee][Yy]|[Ss][Ss][Ii][Dd][[:space:]]*[=:]/d' \
+        -e '/password|passphrase|psk|token|private.?key|ssid[[:space:]]*[=:]/Id' \
         -e 's/([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/[address]/g' \
         -e 's/([0-9A-Fa-f]{1,4}:)*[0-9A-Fa-f]{0,4}::[0-9A-Fa-f:]*(%[A-Za-z0-9_.-]+)?/[ip]/g' \
         -e 's/\b([0-9]{1,3}\.){3}[0-9]{1,3}\b/[ip]/g' \
@@ -61,6 +60,10 @@ self_test() {
     check 'inet 192.168.46.1/24 brd 192.168.46.255' 'inet [ip]/24 brd [ip]'
     check 'inet6 fe80::1c2d:3eff:fe4a:1b2c%wlan0 scope link' 'inet6 [ip] scope link'
     check 'hotspot password=secret' ''
+    check 'Hotspot Passphrase: secret' ''
+    check 'wpa_psk=abcdef0123' ''
+    check 'session Token=abc' ''
+    check '-----BEGIN PRIVATE KEY-----' ''
     check 'SSID: Home Network' ''
     check 'mBssid=4e:b1:c7:94:48:3f' ''
     check 'fix lat=25.204849 lon=55.270783' 'fix lat=[location] lon=[location]'
@@ -111,8 +114,9 @@ section() { # title, remote command
     printf '\n=== %s ===\n' "$1"
     out=$(adb_shell "$2")
     status=$?
-    if [ $status -ne 0 ] && [ -z "$out" ]; then
-        printf 'unavailable (exit %s)\n' "$status"
+    # A remote grep that matches nothing exits 1, so empty output is "nothing found", not a failure.
+    if [ -z "$out" ] && [ $status -ne 0 ]; then
+        printf '(no output, exit %s)\n' "$status"
     elif [ -z "$out" ]; then
         printf '(no output)\n'
     else
@@ -180,7 +184,7 @@ com.byd.car.server com.byd.autovoice com.autonavi.amapauto"
     section 'Vendor packages' \
         "pm list packages | grep -iE 'byd|amap|autonavi|gaode|someip|ts\.car|clusterdebug|hud|navi|voice|carserver|dicar' | sort"
     section 'Vendor package versions' \
-        "for p in $VENDOR_PACKAGES; do v=\$(dumpsys package \$p | grep -m1 -oE 'versionCode=[0-9]+'); f=\$(dumpsys package \$p | grep -m1 -oE 'pkgFlags=\[[^]]*\]'); echo \"\$p: \${v:-not installed} \$f\"; done"
+        "for p in $VENDOR_PACKAGES; do d=\$(dumpsys package \$p); v=\$(printf '%s\n' \"\$d\" | grep -m1 -oE 'versionCode=[0-9]+'); f=\$(printf '%s\n' \"\$d\" | grep -m1 -oE 'pkgFlags=\[[^]]*\]'); echo \"\$p: \${v:-not installed} \$f\"; done"
     section 'HUD and cluster receivers and services' \
         "echo '-- AUTONAVI_STANDARD_BROADCAST_SEND receivers'; cmd package query-receivers --brief -a AUTONAVI_STANDARD_BROADCAST_SEND; echo '-- byd.hud.NAVIGATION receivers'; cmd package query-receivers --brief -a byd.hud.NAVIGATION; echo '-- SOME/IP service'; cmd package query-services --brief -a com.ts.car.someip.SomeIpServerService"
     section 'System services (HUD, instrument, vehicle state)' \
@@ -206,15 +210,15 @@ if [ "$KEYS" -eq 1 ]; then
     printf '\nSteering-wheel buttons: after you press Enter you have %s seconds.\n' "$KEY_SECONDS" >&2
     printf 'Press, in order, with a pause between: next, previous, play/pause, voice (short), voice (hold 2 s).\n' >&2
     read -r -p 'Press Enter to start…' _
-    adb_shell 'logcat -c' >/dev/null
+    # Read only the log lines written from now on, by the car's own clock; never clear its buffers.
+    SINCE=$(adb_shell "date '+%m-%d %H:%M:%S.000'")
+    if [ -n "$SINCE" ]; then LOG_WINDOW="-T '$SINCE'"; else LOG_WINDOW='-t 2000'; fi
     {
         printf '\n=== Steering-wheel buttons (kernel key events) ===\n'
         printf 'Order pressed: next, previous, play/pause, voice short, voice long\n'
         adb_shell "timeout $KEY_SECONDS getevent -lt" | grep -E 'EV_KEY|add device|name:' | redact
-    } >> "$REPORT"
-    {
         section 'Steering-wheel buttons (input and media log tags)' \
-            "logcat -d -s InputDispatcher:V InputReader:V KeyEvent:V MediaSessionService:V AudioService:V *:S | grep -iE 'key|media|voice|button' | head -120"
+            "logcat -d $LOG_WINDOW -s InputDispatcher:V InputReader:V KeyEvent:V MediaSessionService:V AudioService:V *:S | grep -iE 'key|media|voice|button' | head -120"
         section 'Recent broadcast actions (names only)' \
             "dumpsys activity broadcasts history | grep -oE 'act=[A-Za-z0-9._]+' | sort | uniq -c | sort -rn | head -50"
     } >> "$REPORT"

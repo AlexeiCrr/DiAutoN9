@@ -2,8 +2,8 @@ package com.andrerinas.openheadunit.hud
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 
 class HudRouteProbeTest {
@@ -27,12 +27,10 @@ class HudRouteProbeTest {
     @Test
     fun `a send that throws still ends with a clear`() {
         val sent = mutableListOf<BydGuidance?>()
-        try {
+        val thrown = assertThrows(IllegalStateException::class.java) {
             HudRouteProbe.run(send = { sent += it; if (it != null) error("transport down") }, sleep = {}, log = {})
-            fail("expected the transport failure to propagate")
-        } catch (expected: IllegalStateException) {
-            assertEquals("transport down", expected.message)
         }
+        assertEquals("transport down", thrown.message)
         assertNull(sent.last())
     }
 

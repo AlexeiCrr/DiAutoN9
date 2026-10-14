@@ -14,8 +14,12 @@ internal object DiagnosticReportRedactor {
         if (secret.containsMatchIn(line)) return null
         var value = line
         for (saved in listOf(ssid, password).filter { it.isNotEmpty() }) value = value.replace(saved, "[saved value]")
-        return value.replace(mac, "[address]").replace(ip, "[ip]").replace(ipv6, "[ip]")
-            .replace(coordinateField, "$1$2[location]").replace(coordinatePair, "[location]")
-            .replace(email, "[email]").replace(phone, "[phone]").take(1000)
+        value = value.replace(mac, "[address]").replace(ip, "[ip]").replace(ipv6, "[ip]")
+            .replace(coordinateField, "$1$2[location]")
+        // Every journal line passes through here; skip each pattern when its required character is absent.
+        if (value.indexOf(',') >= 0) value = value.replace(coordinatePair, "[location]")
+        if (value.indexOf('@') >= 0) value = value.replace(email, "[email]")
+        if (value.indexOf('+') >= 0) value = value.replace(phone, "[phone]")
+        return value.take(1000)
     }
 }

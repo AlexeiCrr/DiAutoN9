@@ -1,7 +1,6 @@
 package com.andrerinas.openheadunit.hud
 
 import android.content.Context
-import android.content.Intent
 
 /**
  * Debug-only: sends [HudTestSteps] through exactly one HUD route, so the owner can see which routes
@@ -18,19 +17,14 @@ internal object HudRouteProbe {
         return when (route) {
             "someip" -> {
                 BydHudBridge.initialize(app)
-                return { value -> BydHudBridge.update(value) }
+                return BydHudBridge::update
             }
             "amap" -> BydClusterOutput(app)::update
             "clusterdebug" -> {
                 // No firmware gate here on purpose: this is the parked, owner-triggered check of
                 // whether the stock receiver exists and renders on this car at all.
                 val session = BydStandaloneSession(
-                    send = { packet ->
-                        app.sendBroadcast(
-                            Intent("byd.hud.NAVIGATION").setComponent(BydStandaloneHudOutput.TARGET)
-                                .putExtra("normal", packet).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                        )
-                    },
+                    send = { packet -> BydStandaloneHudOutput.dispatch(app, packet) },
                     rememberPendingClear = {},
                 )
                 return { value ->

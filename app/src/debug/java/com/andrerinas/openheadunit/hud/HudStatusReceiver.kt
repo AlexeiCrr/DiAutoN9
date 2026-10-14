@@ -89,7 +89,7 @@ class HudStatusReceiver : BroadcastReceiver() {
             val pending = goAsync()
             Thread({
                 BydNavigationOutputs.syntheticHold = true
-                BydStandaloneHudOutput.syntheticHold = true
+                BydNavigationOutputs.setDiagnosticHold(true)
                 try {
                     HudRouteProbe.run(send) { Log.i(HudRouteProbe.TAG, "$route $it") }
                     Log.i(HudRouteProbe.TAG, "$route sequence finished and cleared")
@@ -97,7 +97,7 @@ class HudStatusReceiver : BroadcastReceiver() {
                     Log.w(HudRouteProbe.TAG, "$route sequence failed: ${e.javaClass.simpleName}: ${e.message}")
                 } finally {
                     BydNavigationOutputs.syntheticHold = false
-                    BydStandaloneHudOutput.syntheticHold = false
+                    BydNavigationOutputs.setDiagnosticHold(false)
                     pending.finish()
                 }
             }, "hud-route-test").start()

@@ -16,8 +16,7 @@ internal class BydStandaloneHudOutput private constructor(context: Context) {
     private val prefs = app.getSharedPreferences("byd_standalone_hud", Context.MODE_PRIVATE)
     private val session = BydStandaloneSession(
         send = { packet ->
-            app.sendBroadcast(Intent("byd.hud.NAVIGATION").setComponent(TARGET)
-                .putExtra("normal", packet).addFlags(Intent.FLAG_RECEIVER_FOREGROUND))
+            dispatch(app, packet)
             Log.d(TAG, "dispatch uid=${Process.myUid()} bytes=${packet.split(',').size}")
         },
         rememberPendingClear = { pending ->
@@ -38,8 +37,14 @@ internal class BydStandaloneHudOutput private constructor(context: Context) {
 
     companion object {
         private const val TAG = "BYD-Standalone-Live"
-        internal val TARGET = ComponentName("com.byd.clusterdebug", "com.byd.clusterdebug.BroadcastReceiverCAN")
+        private val TARGET = ComponentName("com.byd.clusterdebug", "com.byd.clusterdebug.BroadcastReceiverCAN")
         @Volatile var syntheticHold = false
+
+        /** The one broadcast every packet to the stock receiver goes through, live or probed. */
+        internal fun dispatch(context: Context, packet: String) {
+            context.sendBroadcast(Intent("byd.hud.NAVIGATION").setComponent(TARGET)
+                .putExtra("normal", packet).addFlags(Intent.FLAG_RECEIVER_FOREGROUND))
+        }
 
         fun create(context: Context): BydStandaloneHudOutput? =
             if (available(context)) BydStandaloneHudOutput(context) else null
