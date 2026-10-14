@@ -41,6 +41,10 @@ object DiagnosticReport {
             appendLine("Hotspot name saved=${settings.hotspotSsid.isNotBlank()}; password saved=${settings.hotspotPassword.isNotEmpty()}")
             appendLine("Logging level=${settings.exporterLogLevel}; source=${settings.logSource}")
             appendLine("Saved credentials, network addresses and protocol payloads are omitted.")
+            appendLine("--- Head unit probe ---")
+            val probe = runCatching { HeadUnitProbe.collect(context) }
+                .getOrElse { listOf("Head unit probe unavailable: ${it.javaClass.simpleName}") }
+            probe.forEach { line -> DiagnosticReportRedactor.redact(line, ssid, password)?.let { appendLine(it) } }
             appendLine("--- Recent app logs (up to 6000 lines) ---")
             if (lines.isEmpty()) appendLine("No recent app logs available. Reproduce the issue and save a new report.")
             lines.forEach { appendLine(it) }
