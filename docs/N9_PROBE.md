@@ -94,12 +94,15 @@ display**, 15 seconds per step. For each route, record which of the three you sa
 (windshield or cluster).
 
 ```bash
-adb shell am broadcast -n com.andrerinas.headunitrevived.bydhudtest/com.andrerinas.openheadunit.hud.HudStatusReceiver -a com.andrerinas.openheadunit.HUD_ROUTE_TEST --es route someip
+adb shell am start -n com.andrerinas.headunitrevived.bydhudtest/com.andrerinas.openheadunit.hud.HudRouteTestActivity --es route someip
 ```
 
-Repeat with `--es route amap` and `--es route clusterdebug`. The SOME/IP route needs **BYD
-navigation** turned on in the debug build's settings first. Watch progress with
-`adb logcat -s DiAuto-HUD-Route`.
+The command returns at once. A test screen opens on the car display, shows each step as it is sent,
+then shows whether the sequence finished and cleared or failed. Close it with Back before the next
+route: Android may just bring an open test screen to the front instead of starting a new run, and a
+start during a running test is ignored. Repeat with `--es route amap` and `--es route clusterdebug`.
+The SOME/IP route needs **BYD navigation** turned on in the debug build's settings first. Watch
+progress with `adb logcat -s DiAuto-HUD-Route`.
 
 Two existing debug actions cover the BYD car-server route, which a shell-privileged route would build
 on if no normal-app route works:

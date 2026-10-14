@@ -29,11 +29,14 @@ fi
 
 # Masks what is personal or locates the car, and drops lines that name a secret outright.
 # Order matters: long digit runs are masked before the VIN pattern so a 17-digit number reads [number].
+# Full-form IPv6 is masked before the MAC and IPv4 rules, and the :: rule takes a trailing dotted quad
+# (::ffff:a.b.c.d), so neither address comes out half-masked.
 redact() {
     "$SED" -E \
         -e '/password|passphrase|psk|token|private.?key|ssid[[:space:]]*[=:]/Id' \
+        -e 's/([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}(%[A-Za-z0-9_.-]+)?/[ip]/g' \
         -e 's/([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}/[address]/g' \
-        -e 's/([0-9A-Fa-f]{1,4}:)*[0-9A-Fa-f]{0,4}::[0-9A-Fa-f:]*(%[A-Za-z0-9_.-]+)?/[ip]/g' \
+        -e 's/([0-9A-Fa-f]{1,4}:)*[0-9A-Fa-f]{0,4}::[0-9A-Fa-f:]*(([0-9]{1,3}\.){3}[0-9]{1,3})?(%[A-Za-z0-9_.-]+)?/[ip]/g' \
         -e 's/\b([0-9]{1,3}\.){3}[0-9]{1,3}\b/[ip]/g' \
         -e 's/\b(lat(itude)?|lon(gitude)?|lng)([=: ]+)-?[0-9]{1,3}\.[0-9]+/\1\4[location]/Ig' \
         -e 's/-?[0-9]{1,3}\.[0-9]{4,}[[:space:]]*,[[:space:]]*-?[0-9]{1,3}\.[0-9]{4,}/[location]/g' \
@@ -59,6 +62,8 @@ self_test() {
     check 'link addr 4e:b1:c7:94:48:3f' 'link addr [address]'
     check 'inet 192.168.46.1/24 brd 192.168.46.255' 'inet [ip]/24 brd [ip]'
     check 'inet6 fe80::1c2d:3eff:fe4a:1b2c%wlan0 scope link' 'inet6 [ip] scope link'
+    check 'LinkAddresses: [ 2a02:2f0e:5c0b:a400:1c2d:3eff:fe4a:1b2c/64 ]' 'LinkAddresses: [ [ip]/64 ]'
+    check 'upstream ::ffff:192.168.1.20 iface' 'upstream [ip] iface'
     check 'hotspot password=secret' ''
     check 'Hotspot Passphrase: secret' ''
     check 'wpa_psk=abcdef0123' ''
@@ -216,7 +221,15 @@ if [ "$KEYS" -eq 1 ]; then
     {
         printf '\n=== Steering-wheel buttons (kernel key events) ===\n'
         printf 'Order pressed: next, previous, play/pause, voice short, voice long\n'
-        adb_shell "timeout $KEY_SECONDS getevent -lt" | grep -E 'EV_KEY|add device|name:' | redact
+        KEY_RAW=$(adb_shell "timeout $KEY_SECONDS getevent -lt")
+        KEY_LINES=$(printf '%s\n' "$KEY_RAW" | grep -E 'EV_KEY|add device|name:')
+        if [ -n "$KEY_LINES" ]; then
+            printf '%s\n' "$KEY_LINES" | redact
+        else
+            # A failed capture (permission denied, no timeout binary, device gone) must not read as "no keys pressed".
+            printf '(no key events captured)\n'
+            [ -n "$KEY_RAW" ] && printf '%s\n' "$KEY_RAW" | head -n 5 | redact
+        fi
         section 'Steering-wheel buttons (input and media log tags)' \
             "logcat -d $LOG_WINDOW -s InputDispatcher:V InputReader:V KeyEvent:V MediaSessionService:V AudioService:V *:S | grep -iE 'key|media|voice|button' | head -120"
         section 'Recent broadcast actions (names only)' \

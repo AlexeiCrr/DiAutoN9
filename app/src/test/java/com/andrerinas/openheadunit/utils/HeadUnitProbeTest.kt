@@ -2,6 +2,7 @@ package com.andrerinas.openheadunit.utils
 
 import com.andrerinas.openheadunit.profile.HeadUnitIdentity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,8 +18,8 @@ class HeadUnitProbeTest {
 
     private fun render(
         display: HeadUnitProbe.Display? = n9Panel,
-        decoders: List<HeadUnitProbe.Decoder> = emptyList(),
-        interfaces: List<String> = emptyList(),
+        decoders: List<HeadUnitProbe.Decoder>? = emptyList(),
+        interfaces: List<String>? = emptyList(),
         packages: List<HeadUnitProbe.VendorPackage> = emptyList(),
         who: HeadUnitIdentity = identity,
     ) = HeadUnitProbe.render(who, display, decoders, interfaces, packages)
@@ -75,6 +76,30 @@ class HeadUnitProbeTest {
     }
 
     @Test
+    fun `unreadable decoders render as unavailable, not as none listed`() {
+        val lines = render(decoders = null)
+
+        assertTrue(lines.contains("Video decoders: unavailable"))
+        assertFalse(lines.contains("Video decoders: none listed"))
+    }
+
+    @Test
+    fun `unreadable interfaces render as unavailable, not as none listed`() {
+        val lines = render(interfaces = null)
+
+        assertTrue(lines.contains("Interfaces: unavailable"))
+        assertFalse(lines.contains("Interfaces: none listed"))
+    }
+
+    @Test
+    fun `an empty decoder list still renders as none listed`() {
+        val lines = render(decoders = emptyList())
+
+        assertTrue(lines.contains("Video decoders: none listed"))
+        assertFalse(lines.contains("Video decoders: unavailable"))
+    }
+
+    @Test
     fun `vendor packages show their version or that they are not visible`() {
         val lines = render(
             packages = listOf(
@@ -95,7 +120,8 @@ class HeadUnitProbeTest {
             interfaces = listOf("ap0(up)", "eth0", "p2p0", "wlan0(up)"),
             packages = listOf(HeadUnitProbe.VendorPackage("com.byd.clusterdebug", 10601004L, true)),
         )
+        val unread = render(decoders = null, interfaces = null)
 
-        for (line in lines) assertEquals(line, DiagnosticReportRedactor.redact(line, "", ""))
+        for (line in lines + unread) assertEquals(line, DiagnosticReportRedactor.redact(line, "", ""))
     }
 }

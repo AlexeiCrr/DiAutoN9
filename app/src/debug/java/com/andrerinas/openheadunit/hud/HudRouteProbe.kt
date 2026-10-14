@@ -5,7 +5,7 @@ import android.content.Context
 /**
  * Debug-only: sends [HudTestSteps] through exactly one HUD route, so the owner can see which routes
  * render on this firmware before any of them is trusted. Reached only from an ADB shell through
- * [HudStatusReceiver]; no production path uses it.
+ * [HudRouteTestActivity]; no production path uses it.
  */
 internal object HudRouteProbe {
     const val TAG = "DiAuto-HUD-Route"

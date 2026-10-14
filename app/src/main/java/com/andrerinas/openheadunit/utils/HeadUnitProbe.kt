@@ -38,11 +38,12 @@ object HeadUnitProbe {
     /** Vendor packages the manifest's `<queries>` lets the app see. */
     val VENDOR_PACKAGES = listOf("com.ts.car.someip.service", "com.byd.amapservice", "com.byd.clusterdebug")
 
+    /** Null [decoders] or [interfaces] means the read failed: "unavailable", never "none listed". */
     fun render(
         identity: HeadUnitIdentity,
         display: Display?,
-        decoders: List<Decoder>,
-        interfaces: List<String>,
+        decoders: List<Decoder>?,
+        interfaces: List<String>?,
         packages: List<VendorPackage>,
     ): List<String> = buildList {
         fun shown(value: String) = value.ifBlank { "unknown" }
@@ -65,12 +66,19 @@ object HeadUnitProbe {
             )
             if (display.modes.isNotEmpty()) add("Display modes: ${display.modes.joinToString(", ")}")
         }
-        if (decoders.isEmpty()) add("Video decoders: none listed")
-        decoders.forEach { decoder ->
-            val kind = if (decoder.hardware) "hardware" else "software"
-            add("Decoder $kind ${decoder.mimeTypes.joinToString("+")} ${decoder.name}")
+        when {
+            decoders == null -> add("Video decoders: unavailable")
+            decoders.isEmpty() -> add("Video decoders: none listed")
+            else -> decoders.forEach { decoder ->
+                val kind = if (decoder.hardware) "hardware" else "software"
+                add("Decoder $kind ${decoder.mimeTypes.joinToString("+")} ${decoder.name}")
+            }
         }
-        add("Interfaces: ${interfaces.ifEmpty { listOf("none listed") }.joinToString(", ")}")
+        when {
+            interfaces == null -> add("Interfaces: unavailable")
+            interfaces.isEmpty() -> add("Interfaces: none listed")
+            else -> add("Interfaces: ${interfaces.joinToString(", ")}")
+        }
         packages.forEach { pkg ->
             val state = pkg.versionCode?.let { "versionCode=$it system=${pkg.system}" } ?: "not visible"
             add("Vendor package ${pkg.name}: $state")
@@ -87,8 +95,8 @@ object HeadUnitProbe {
     fun collect(context: Context): List<String> = render(
         HeadUnitIdentity.current,
         runCatching { readDisplay(context) }.getOrNull(),
-        runCatching { readDecoders() }.getOrDefault(emptyList()),
-        runCatching { readInterfaces() }.getOrDefault(emptyList()),
+        runCatching { readDecoders() }.getOrNull(),
+        runCatching { readInterfaces() }.getOrNull(),
         VENDOR_PACKAGES.map { name ->
             runCatching { readPackage(context, name) }.getOrDefault(VendorPackage(name, null, false))
         },
@@ -110,8 +118,9 @@ object HeadUnitProbe {
         return Display(size.x, size.y, metrics.densityDpi, display.refreshRate, modes)
     }
 
-    private fun readDecoders(): List<Decoder> {
-        if (Build.VERSION.SDK_INT < 21) return emptyList()
+    /** Null below API 21, where the decoder list cannot be read: "unavailable", not "none listed". */
+    private fun readDecoders(): List<Decoder>? {
+        if (Build.VERSION.SDK_INT < 21) return null
         return MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
             .filter { !it.isEncoder }
             .mapNotNull { info ->
@@ -124,7 +133,7 @@ object HeadUnitProbe {
     /** Names and up/down only; addresses never leave the device in this section. */
     private fun readInterfaces(): List<String> =
         NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
-            .map { if (it.isUp) "${it.name}(up)" else it.name }
+            .map { if (runCatching { it.isUp }.getOrDefault(false)) "${it.name}(up)" else it.name }
             .sorted()
 
     /** Throws when the package is absent or hidden; [collect] maps that to "not visible". */

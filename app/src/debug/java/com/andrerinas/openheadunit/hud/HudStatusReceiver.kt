@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Parcel
 import android.util.Log
-import com.andrerinas.openheadunit.utils.Settings
 import com.byd.spi.ipc.cursor.BinderCursor
 
 /** Shell-triggered, debug-only status probe. The transaction allowlist contains getters only. */
@@ -72,35 +71,6 @@ class HudStatusReceiver : BroadcastReceiver() {
                     pending.finish()
                 }
             }, "hud-send-test").start()
-            return
-        }
-        if (intent.action == "com.andrerinas.openheadunit.HUD_ROUTE_TEST") {
-            val route = intent.getStringExtra("route").orEmpty()
-            if (route == "someip" && !Settings(context).bydNavigationEnabled) {
-                resultData = "Turn on BYD navigation in DiAuto settings first; the SOME/IP route clears while it is off"
-                return
-            }
-            val send = HudRouteProbe.sender(context, route)
-            if (send == null) {
-                resultData = "Unknown route '$route'; use one of ${HudRouteProbe.ROUTES}"
-                return
-            }
-            resultData = "Route test started: $route. Watch for left 500 m, right 800 m, then a cleared display."
-            val pending = goAsync()
-            Thread({
-                BydNavigationOutputs.syntheticHold = true
-                BydNavigationOutputs.setDiagnosticHold(true)
-                try {
-                    HudRouteProbe.run(send) { Log.i(HudRouteProbe.TAG, "$route $it") }
-                    Log.i(HudRouteProbe.TAG, "$route sequence finished and cleared")
-                } catch (e: Exception) {
-                    Log.w(HudRouteProbe.TAG, "$route sequence failed: ${e.javaClass.simpleName}: ${e.message}")
-                } finally {
-                    BydNavigationOutputs.syntheticHold = false
-                    BydNavigationOutputs.setDiagnosticHold(false)
-                    pending.finish()
-                }
-            }, "hud-route-test").start()
             return
         }
         if (intent.action == "com.andrerinas.openheadunit.HUD_SNAPSHOT") {

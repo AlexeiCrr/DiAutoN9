@@ -9,5 +9,6 @@
     <application android:label="DiAuto HUD Test" tools:replace="android:label">
         <receiver android:name="com.andrerinas.openheadunit.hud.HudStatusReceiver" android:exported="true" android:permission="android.permission.DUMP" />
         <activity android:name="com.andrerinas.openheadunit.hud.StandaloneHudDemoActivity" android:exported="true" android:permission="android.permission.DUMP" />
+        <activity android:name="com.andrerinas.openheadunit.hud.HudRouteTestActivity" android:exported="true" android:permission="android.permission.DUMP" />
     </application>
 </manifest>
