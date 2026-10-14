@@ -1,0 +1,2 @@
+# Shell scripts must keep LF endings so Git Bash on Windows can run them after checkout.
+*.sh text eol=lf
