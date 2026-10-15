@@ -16,7 +16,7 @@ deepened: 2026-10-14
 
 - **Objective:** Make DiAuto deliver full wireless Android Auto on a China-spec Denza N9's center screen and Android Auto turn guidance on its windshield AR-HUD, without changing behavior on the tested BYD DiLink 5.1 or any other head unit beyond upstream PR #42.
 - **Product authority:** The Product Contract below. The N9 owner decides product behavior. Upstream DiAuto's verified-firmware rule for HUD output constrains what is mergeable later.
-- **Execution profile:** Evidence-gated. U1 and U15 are code with no car dependency; U2 is owner-run on the physical car over ADB and gates every N9-specific unit after it. Each later code unit ends with an owner on-car check recorded in `docs/N9_EVIDENCE.md`.
+- **Execution profile:** Evidence-gated. U1 and U15 are code with no car dependency; U16 is a debug-build probe screen with no car dependency; U2 is owner-run on the physical car through it, needs no computer, and gates every N9-specific unit after it. Each later code unit ends with an owner on-car check recorded in `docs/N9_EVIDENCE.md`.
 - **Stop conditions:** Stop and ask the owner when the probe shows the N9 blocks a prerequisite for R7 (third-party hotspot, Bluetooth start events, or background running); when any change would alter a DiLink 5.1 or generic default beyond upstream PR #42; or when every HUD route, including the shell route, fails on the car (the HUD part is then documented as not possible on this firmware).
 - **Tail ownership:** The owner commits and pushes to the `AlexeiCrr/DiAutoN9` fork. Upstream contribution is follow-up work, not part of this plan.
 - **Open blockers:** None.
@@ -25,11 +25,11 @@ deepened: 2026-10-14
 
 ## Product Contract
 
-Product Contract preservation: changed R14 — HUD route order now follows N9 evidence (SOME/IP service first, Amap path second), user-approved at plan scoping; changed R4 — upstream PR #42 applies to every head unit, user-directed during planning. Problem Frame and Dependencies facts updated from research; Outstanding Questions resolved in place into the Planning Contract. All other R/A/F/AE IDs unchanged.
+Product Contract preservation: changed R14 — HUD route order now follows N9 evidence (SOME/IP service first, Amap path second), user-approved at plan scoping; changed R4 — upstream PR #42 applies to every head unit, user-directed during planning; changed R2 and A1 — the owner has no ADB access to the car and their computer cannot reach it, so the primary probe moves into the debug app (U16) and the ADB script becomes optional, user-directed during implementation (2026-10-15). Problem Frame and Dependencies facts updated from research; Outstanding Questions resolved in place into the Planning Contract. All other R/A/F/AE IDs unchanged.
 
 ### Summary
 
-Add Denza N9 support to DiAuto in two layers. Wireless Android Auto runs full-screen on the N9 center screen, hands-off. Android Auto turn guidance appears on the windshield AR-HUD. An ADB probe of the car comes first, and every N9-specific behavior lives in a detected N9 profile that leaves other head units untouched.
+Add Denza N9 support to DiAuto in two layers. Wireless Android Auto runs full-screen on the N9 center screen, hands-off. Android Auto turn guidance appears on the windshield AR-HUD. A probe of the car comes first, and every N9-specific behavior lives in a detected N9 profile that leaves other head units untouched.
 
 ### Problem Frame
 
@@ -39,7 +39,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 
 ### Actors
 
-- A1. N9 owner and driver: has ADB and APK-install access to the head unit, no root, and builds DiAuto from this fork.
+- A1. N9 owner and driver: installs APKs on the head unit from a USB stick or APKPure, has no ADB access and no root, and gets DiAuto builds of this fork from its CI.
 - A2. Android phone: runs Android Auto and Google Maps/Waze, and is paired to the car once.
 - A3. N9 head unit: runs DiAuto and exposes the center screen, car microphone, steering-wheel buttons, hotspot or Wi-Fi Direct, and vendor navigation services.
 - A4. Windshield AR-HUD and instrument cluster: render turn guidance from whatever source the N9 firmware accepts.
@@ -50,7 +50,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 - **Full Android Auto, not a destination handoff.** The owner wants assistant, media, and messaging on the big screen, not only phone-side destination entry. (session-settled: user-directed — chosen over sending destinations from the phone to the car's own Google Maps/Waze: the "good stuff that comes with Android Auto" is the goal.) Governs R7-R12.
 - **Center screen and HUD in one plan.** (session-settled: user-directed — chosen over planning center-screen Android Auto first with HUD as a follow-on brainstorm: owner accepted the larger, riskier scope.) Governs R13-R17.
 - **For this N9 now, mergeable upstream later.** (session-settled: user-directed — chosen over a personal-only build hard-targeting this car, and over a separately published N9 release: keeps the door open to contribute "Denza N9 / DiLink 150 support".) Governs R4-R6, R17.
-- **Probe first, then a detected N9 profile.** (session-settled: user-approved — chosen over installing upstream unchanged and patching failures one by one: with ADB available, one probe replaces guessing and keeps N9 rules out of scattered model checks.) Governs R1-R5.
+- **Probe first, then a detected N9 profile.** (session-settled: user-approved — chosen over installing upstream unchanged and patching failures one by one: one probe replaces guessing and keeps N9 rules out of scattered model checks. The probe runs in-app because the owner has no ADB; see R2.) Governs R1-R5.
 - **Take upstream PR #42 now for every head unit.** Its fixes for 1440p requested over H.264 and for an 800x480 fallback after a surface change apply to all units ahead of the upstream merge. (session-settled: user-directed — chosen over an N9-only rule that waits for upstream to merge PR #42: the fix is upstream's own and helps the N9 immediately.) Governs R4, R9.
 - **Least-privilege HUD ladder ordered by N9 evidence.** Normal-app routes come before any shell-privileged route, and among them the SOME/IP HUD service comes first because another N9 owner's app reached the windshield through it. (session-settled: user-approved — chosen over starting with the Amap guidance path: on DiLink 150 the Amap service may be absent and never reached the windshield on DiLink 3.) Governs R14.
 - **Shell-privileged HUD route acceptable as opt-in.** (session-settled: user-directed — chosen over app-only routes and over "only if fully hands-off": HUD guidance is worth a re-enable step after car restarts.) Governs R15.
@@ -67,7 +67,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 **N9 probe and evidence**
 
 - R1. A repeatable probe captures what the app currently assumes about the head unit: firmware fingerprint and model strings, chip and hardware HEVC decoders, panel resolution, refresh rate, density, and any hidden window strip, hotspot and Wi-Fi Direct interfaces and bands, the presence and versions of the vendor navigation services (Amap service, cluster receiver, SOME/IP service, car property service), steering-wheel button events, and car-microphone access for third-party apps.
-- R2. The probe runs with the owner's existing ADB access and no root, and its report omits credentials and network addresses.
+- R2. The probe runs on the car from the debug build, with no computer, ADB or root, and its report omits credentials and network addresses.
 - R3. Each N9-specific behavior traces to probe evidence or an on-car test recorded with the project.
 
 **N9 profile and upstream safety**
@@ -98,7 +98,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 - F1. First-time N9 setup
   - **Trigger:** Owner installs the N9-capable build for the first time.
   - **Actors:** A1, A2, A3
-  - **Steps:** Owner runs the probe over ADB and reviews the report. Owner installs the build. The app detects the N9 and applies the N9 profile. Owner works through the hands-off readiness checklist and pairs the phone once over the transport the probe showed works. Owner turns on BYD navigation and runs the HUD test while parked. If only the shell route works, owner opts in and enables it.
+  - **Steps:** Owner runs the in-app probe on the car and reviews the report. Owner installs the build. The app detects the N9 and applies the N9 profile. Owner works through the hands-off readiness checklist and pairs the phone once over the transport the probe showed works. Owner turns on BYD navigation and runs the HUD test while parked. If only the shell route works, owner opts in and enables it.
   - **Outcome:** The next car start connects hands-off.
   - **Covered by:** R1, R2, R4, R5, R7, R14, R15
 - F2. Daily drive
@@ -151,7 +151,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 ### Dependencies / Assumptions
 
 - The car is a China-spec N9 on DiLink 150 with the 6.0 UI, Android 13, and the mt8673-based BYD 9000 chip, as reported by another N9 owner; the probe confirms this car's values.
-- The owner has ADB and APK-install access and no root, and runs the probe from a computer with `adb` and a POSIX shell (Git Bash on Windows).
+- The owner installs APKs from a USB stick or APKPure, has no ADB and no root, and their computer cannot reach the car. Builds reach the car as the CI debug-APK artifact copied to a USB stick; each CI run signs with a new debug key, so an update means uninstalling first.
 - The phone has working Android Auto and Google services.
 - Unverified on this car: the N9 lets third-party apps run the car hotspot or Wi-Fi Direct, use the car microphone, and receive steering-wheel button events.
 - Unverified on this car: the AR-HUD renders guidance sent through the SOME/IP HUD service from a normal app. Another N9 owner's app did so on firmware 2605, and street names disappeared after firmware 2607.
@@ -194,7 +194,7 @@ DiAuto already delivers Android Auto on BYD head units, but it is verified only 
 
 ### Key Technical Decisions
 
-- KTD1. **The probe is a POSIX shell script run over ADB from the owner's computer, plus a redacted section in the in-app diagnostics export.** Package visibility, `dumpsys`, `getevent`, and receiver queries are unreachable from the app; the in-app section adds what only the app sees (decoder capabilities, window metrics). Implements the "probe first" Key Decision. Governs R1-R3.
+- KTD1. **The primary probe is a debug-build screen the owner runs on the car (U16); a POSIX shell script over ADB is an optional deeper probe; both share the in-app diagnostics section's redaction.** The debug build may hold `QUERY_ALL_PACKAGES`, so the screen lists vendor packages, receivers and services, reads app-visible properties, records key events that reach a focused window or an active media session, and opens the microphone. It cannot read kernel key events, logs, `dumpsys`, or app-hidden properties; that is acceptable because N9 detection may only use app-visible properties. Implements the "probe first" Key Decision. Governs R1-R3.
 - KTD2. **N9 detection reads identity properties, never `Build.MODEL` alone, and matches the N9 only.** Inputs are fingerprint family, board, hardware, and the vehicle-type and car-model properties the probe finds; other DiLink 150 cars on the same chip keep their current behavior. (session-settled: user-approved — chosen over a DiLink 150 platform-wide profile: the Leopard 5/8 share the chip and the `DiLink5.1` model string but nobody has verified the N9 rules on them.) Governs R4.
 - KTD3. **The N9 profile is a pure policy over one process-wide identity holder, consulted at use time and never written to preferences.** `HeadUnitIdentity` is a lazy snapshot of `Build` values and system properties, safe before unlock, with a test override. `Settings` getters and the direct consumers listed under System-Wide Impact ask the profile only when no preference is stored. Under the N9 profile, onboarding writes the deferring values (AUTO resolution, "Auto" codec) and leaves renderer and density unset, so an applied recommendation is never mistaken for a user choice. The profile never owns auto-start defaults. Governs R4, R5.
 - KTD4. **Upstream PR #42 lands first as its own untouched commit, and the N9 rule overrides it through KTD5 without editing its lines.** That keeps the fork rebasing cleanly when upstream merges PR #42. (session-settled: user-directed — chosen over an N9-only rule waiting for the upstream merge: the fix is upstream's own and helps the N9 immediately.) Governs R4, R9.
@@ -339,7 +339,7 @@ flowchart TB
 | U-ID | Title | Key files | Depends on |
 |---|---|---|---|
 | U1 | N9 probe tooling and identity snapshot | `scripts/n9_probe.sh`, `profile/HeadUnitIdentity.kt`, `hud/HudTestSteps.kt` | — |
-| U2 | Owner probe run and baseline drive | `docs/N9_EVIDENCE.md` | U1 |
+| U2 | Owner probe run and baseline drive | `docs/N9_EVIDENCE.md` | U1, U16 |
 | U3 | N9 profile and read-time defaults | `profile/HeadUnitProfilePolicy.kt`, `utils/Settings.kt`, `main/OnboardingActivity.kt` | U2 |
 | U4 | Video negotiation under the N9 profile | `decoder/VideoNegotiationPolicy.kt`, `utils/HeadUnitScreenConfig.kt`, `aap/protocol/messages/ServiceDiscoveryResponse.kt` | U3, U15 |
 | U5 | Hands-off wireless connection | `main/HandsOffReadinessPolicy.kt`, `main/ConnectionSetupFragment.kt` | U3 |
@@ -353,8 +353,9 @@ flowchart TB
 | U13 | N9 HUD clear journal | `hud/HudClearJournal.kt`, `hud/BydNavigationOutputs.kt` | U7 |
 | U14 | In-car HUD test | `hud/HudTestSequence.kt`, `main/SettingsFragment.kt` | U7 |
 | U15 | Upstream PR #42 | files as changed upstream | — |
+| U16 | In-app N9 probe | `app/src/debug/.../probe/N9ProbeActivity.kt`, `app/src/debug/.../probe/N9ProbeReport.kt` | U1 |
 
-Key-file paths are relative to `app/src/main/java/com/andrerinas/openheadunit/` unless they start with `scripts/`, `docs/`, or `res/`; unit bodies give full repo-relative paths. Suggested order: U1, U15, U2, U3, then U4/U5/U6/U12/U7 in any order, then U13, U14, U8, U9 (if needed), U10, U11.
+Key-file paths are relative to `app/src/main/java/com/andrerinas/openheadunit/` unless they start with `scripts/`, `docs/`, or `res/`; unit bodies give full repo-relative paths. Suggested order: U1, U15, U16, U2, U3, then U4/U5/U6/U12/U7 in any order, then U13, U14, U8, U9 (if needed), U10, U11.
 
 ### U1. N9 probe tooling and identity snapshot
 
@@ -379,7 +380,7 @@ Key-file paths are relative to `app/src/main/java/com/andrerinas/openheadunit/` 
   3. Every section tolerates a missing command and prints "unavailable"; output passes a redaction filter for MAC, IP, serial, SSID, and passphrase values.
   4. `HeadUnitIdentity` reads `Build` values and properties through `utils/SystemProperties.java` behind an injected reader, is lazy and process-wide, and has a test override.
   5. `HeadUnitProbe` renders identity, display metrics, interface names, and decoders from `DecoderCapabilityReport.query`, with pure rendering split from the Context reader; versionCodes print as integers so the IP mask cannot eat four-part version names.
-  6. `HudTestSteps` defines the left 500 m, right 800 m, clear step list once; the debug receiver gains a per-route send action (SOME/IP, Amap, `clusterdebug`) that uses it, reachable only from an ADB shell like the existing actions.
+  6. `HudTestSteps` defines the left 500 m, right 800 m, clear step list once; a debug route-test activity (SOME/IP, Amap, `clusterdebug`) uses it, started from an ADB shell or from the U16 probe screen.
 - **Patterns to follow:** `scripts/install.sh` for shell style; `aap/ExternalBtPolicy.kt` for an injected property reader; `decoder/DecoderCapabilityReport.kt` and its test for pure rendering; existing `HUD_SEND_TEST` handling in the debug receiver.
 - **Test scenarios:**
   - An identity built from an injected reader exposes fingerprint, model, board, hardware, platform, and vehicle type.
@@ -395,16 +396,16 @@ Key-file paths are relative to `app/src/main/java/com/andrerinas/openheadunit/` 
 
 - **Goal:** Capture the N9 evidence and the behavior of the unmodified build on the car, and commit it as the baseline every N9 rule cites.
 - **Requirements:** R1, R3; F1. Gates U3-U14.
-- **Dependencies:** U1.
+- **Dependencies:** U1, U16.
 - **Files:**
   - Create `docs/N9_EVIDENCE.md`
   - Create `docs/n9/probe-<firmware-build>.txt`
 - **Approach:**
-  1. Owner runs `scripts/n9_probe.sh` with the car parked and commits the redacted report.
-  2. Owner installs the current fork build (U1 plus U15 when available), sets Resolution to 1080p, grants Nearby devices, and enters hotspot details per `docs/CONNECTION_SETUP.md`.
+  1. Owner installs the debug build from the CI artifact via USB stick, runs the U16 probe with the car parked, saves the report to the stick, and commits the redacted report.
+  2. Owner drives with that debug build (it is the whole app), sets Resolution to 1080p, grants Nearby devices, and enters hotspot details per `docs/CONNECTION_SETUP.md`.
   3. On drives, owner records: car-start-to-projection time over several starts; picture fit and bars on the 16:10 panel; touch accuracy at all four edges; what each wheel button does; voice short and long press; assistant through the car mic; a phone call; whether media audio pauses or fights.
   4. Owner turns on BYD navigation if the toggle shows, navigates with Google Maps in Android Auto, and records what the windshield and cluster show.
-  5. Owner installs the debug build (`.bydhudtest` suffix) and triggers U1's per-route send action over ADB for each available route, recording what the windshield and cluster show.
+  5. Owner runs each per-route HUD test from the probe screen, recording what the windshield and cluster show.
   6. Owner notes which identity property separates this N9 from other DiLink 150 cars.
 - **Execution note:** Owner-run on the physical car; an agent cannot perform this unit. Its results decide the conditional work in U5, U6, U8, U9, and U12.
 - **Test expectation:** none -- evidence capture, no code.
@@ -771,6 +772,30 @@ Key-file paths are relative to `app/src/main/java/com/andrerinas/openheadunit/` 
 - **Test expectation:** none in this commit -- upstream's change lands untouched; U4 adds the generic-panel characterization cases that run on top of it.
 - **Verification:** The existing test suite and both builds pass after the cherry-pick, and the N9 baseline drive in U2 connects at manual 1080p.
 
+### U16. In-app N9 probe
+
+- **Goal:** The owner captures the U2 evidence without a computer: a debug-only launcher screen runs the key, microphone and HUD route tests and saves one redacted report to Downloads or a USB stick.
+- **Requirements:** R1, R2, R3; F1; KTD1.
+- **Dependencies:** U1.
+- **Files:**
+  - Create `app/src/debug/java/com/andrerinas/openheadunit/probe/N9ProbeActivity.kt`
+  - Create `app/src/debug/java/com/andrerinas/openheadunit/probe/N9ProbeReport.kt`
+  - Modify `app/src/debug/AndroidManifest.xml`
+  - Modify `docs/N9_PROBE.md`
+  - Test `app/src/testDebug/java/com/andrerinas/openheadunit/probe/N9ProbeReportTest.kt`
+- **Approach:**
+  1. `N9ProbeReport` is the pure half: the property, service and package filters (mirroring `scripts/n9_probe.sh`), a key-event line without device names, extra masks for long digit runs and VIN-shaped strings, and report assembly where every line passes the redactor and an empty section reads "(none)".
+  2. `N9ProbeActivity` is a launcher entry ("DiAuto N9 Probe", own task affinity) in the debug manifest only, with `QUERY_ALL_PACKAGES` in the debug manifest only. It collects `HeadUnitProbe`, window bounds and insets, app-visible properties, vendor packages, HUD and cluster endpoints, system services, settings, power state and input devices on a worker thread.
+  3. The key test holds media focus, plays silence and owns an active media session for 30 seconds, logging events from both the window and the session. The microphone test keeps only the open state and peak level. HUD route buttons start the U1 route-test activity, and the owner records "saw all 3", "partly" or "nothing" per route.
+  4. The report saves through `DiagnosticExportStore`, to Downloads/DiAuto or to a location picked with the document picker.
+- **Test scenarios:**
+  - Candidate properties keep vehicle-identity lines and drop serial, VIN, Wi-Fi and SSID lines; the list is capped.
+  - The service filter keeps only HUD, instrument and vehicle services; vendor packages are recognised by name.
+  - A key line carries codes and flags but no device name.
+  - Identifier masks hide digit runs and VIN-shaped values and keep version codes.
+  - Rendering redacts every line, drops removed lines, and marks empty sections.
+- **Verification:** Unit tests and both builds pass; on the car, the probe saves a report to a USB stick with every section present.
+
 ---
 
 ## Verification Contract
@@ -780,10 +805,11 @@ Toolchain: JDK 17, Android SDK 36, NDK `29.0.14206865`, CMake `3.22.1`. On Windo
 | Gate | Command or action | Applies to |
 |---|---|---|
 | Localization | `python3 scripts/check_localization.py` | Every unit that adds or changes strings (U4, U5, U6 when the accessibility service is built, U9, U10, U14) and before every commit |
-| Unit tests | `./gradlew :app:testGithubDebugUnitTest` | Every code unit (U1, U3-U10, U12-U15) |
+| Unit tests | `./gradlew :app:testGithubDebugUnitTest` | Every code unit (U1, U3-U10, U12-U16) |
 | Build | `./gradlew :app:assembleGithubDebug :app:assembleGithubRelease` | Every code unit |
 | Non-N9 non-regression | Existing tests plus the DiLink 5.1, Leopard-like, and generic-identity cases in U3, U4, U6, U7, U8, U10, U12, U13 | U3-U14 |
 | Probe smoke | `scripts/n9_probe.sh` against any adb-connected Android device | U1 |
+| In-app probe smoke | Install the CI debug APK on any Android 10+ device, run the probe screen, save a report | U16 |
 | On-car check | Owner runs the unit's on-car verification and records it in `docs/N9_EVIDENCE.md` with the firmware build | U2, U4-U10, U12-U14 |
 
 ---
@@ -819,3 +845,4 @@ Toolchain: JDK 17, Android SDK 36, NDK `29.0.14206865`, CMake `3.22.1`. On Windo
 | U13 | Leftover N9 guidance clears on next open, and no clear reaches a different firmware build. |
 | U14 | The in-car test writes records only while parked, and a confirmed route is used on the next session. |
 | U15 | PR #42 lands as an untouched commit and the suite and builds pass. |
+| U16 | The debug build's probe screen saves a redacted report with every section, without ADB; tests pass. |

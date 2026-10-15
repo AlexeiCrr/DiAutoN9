@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.BYDAUTO_INSTRUMENT_COMMON" />
+    <!-- The in-app N9 probe lists vendor packages and receivers; debug builds only. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <permission android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE" tools:node="remove" />
     <permission android:name="${applicationId}.permission.NAVIGATION_UPDATE" android:protectionLevel="signature" />
@@ -10,5 +12,14 @@
         <receiver android:name="com.andrerinas.openheadunit.hud.HudStatusReceiver" android:exported="true" android:permission="android.permission.DUMP" />
         <activity android:name="com.andrerinas.openheadunit.hud.StandaloneHudDemoActivity" android:exported="true" android:permission="android.permission.DUMP" />
         <activity android:name="com.andrerinas.openheadunit.hud.HudRouteTestActivity" android:exported="true" android:permission="android.permission.DUMP" />
+        <activity android:name="com.andrerinas.openheadunit.probe.N9ProbeActivity" android:exported="true"
+            android:label="DiAuto N9 Probe" android:taskAffinity="${applicationId}.n9probe"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density|fontScale|keyboard|keyboardHidden|navigation|locale|layoutDirection">
+            <!-- The car switches day and night on its own; a recreated screen would lose the test results. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

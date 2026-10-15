@@ -10,7 +10,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.andrerinas.openheadunit.utils.Settings
 
-/** ADB-started route test as an activity, so no held broadcast delays the routes' own broadcasts. */
+/**
+ * Route test started over ADB or from the N9 probe screen; an activity, so no held broadcast delays
+ * the routes' own broadcasts.
+ */
 class HudRouteTestActivity : Activity() {
     private lateinit var status: TextView
 
